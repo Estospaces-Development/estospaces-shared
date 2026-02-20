@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/estospaces/shared/pkg/config"
 	"gorm.io/driver/postgres"
@@ -29,8 +30,9 @@ func Connect(cfg *config.DatabaseConfig) (*DB, error) {
 		return nil, fmt.Errorf("failed to get underlying sql.DB: %w", err)
 	}
 
-	sqlDB.SetMaxOpenConns(25)
+	sqlDB.SetMaxOpenConns(20)
 	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
 
 	log.Printf("Connected to database: %s:%s/%s", cfg.Host, cfg.Port, cfg.Name)
 	return &DB{db}, nil
