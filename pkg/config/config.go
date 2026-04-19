@@ -48,11 +48,20 @@ func (d *DatabaseConfig) DSN() string {
 
 // Load reads configuration from environment variables with sensible defaults
 func Load() (*Config, error) {
-	godotenv.Load() // ignore error — .env is optional
+	godotenv.Load() // ignore error; .env is optional
 
 	expiry, err := time.ParseDuration(getEnv("JWT_EXPIRY", "24h"))
 	if err != nil {
 		expiry = 24 * time.Hour
+	}
+
+	dbPassword, err := getRequiredEnv("DB_PASSWORD")
+	if err != nil {
+		return nil, err
+	}
+	jwtSecret, err := getRequiredEnv("JWT_SECRET")
+	if err != nil {
+		return nil, err
 	}
 
 	origins := strings.Split(getEnv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"), ",")
@@ -66,12 +75,12 @@ func Load() (*Config, error) {
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("DB_PORT", "5432"),
 			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", "postgres123"),
+			Password: dbPassword,
 			Name:     getEnv("DB_NAME", "estospaces"),
 			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
 		},
 		JWT: JWTConfig{
-			Secret: getEnv("JWT_SECRET", "esto-dev-secret-key-change-in-production"),
+			Secret: jwtSecret,
 			Expiry: expiry,
 		},
 		CORS: CORSConfig{
@@ -85,4 +94,11 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getRequiredEnv(key string) (string, error) {
+	if v := os.Getenv(key); v != "" {
+		return v, nil
+	}
+	return "", fmt.Errorf("%s is required", key)
 }
