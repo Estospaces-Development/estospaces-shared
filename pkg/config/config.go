@@ -50,6 +50,8 @@ func (d *DatabaseConfig) DSN() string {
 func Load() (*Config, error) {
 	godotenv.Load() // ignore error; .env is optional
 
+	env := getEnv("ENV", "development")
+
 	expiry, err := time.ParseDuration(getEnv("JWT_EXPIRY", "24h"))
 	if err != nil {
 		expiry = 24 * time.Hour
@@ -64,20 +66,40 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	origins := strings.Split(getEnv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"), ",")
+	dbHost, err := getEnvForRuntime("DB_HOST", "localhost", env)
+	if err != nil {
+		return nil, err
+	}
+	dbUser, err := getEnvForRuntime("DB_USER", "postgres", env)
+	if err != nil {
+		return nil, err
+	}
+	dbName, err := getEnvForRuntime("DB_NAME", "estospaces", env)
+	if err != nil {
+		return nil, err
+	}
+	dbSSLMode, err := getEnvForRuntime("DB_SSL_MODE", "disable", env)
+	if err != nil {
+		return nil, err
+	}
+	allowedOrigins, err := getEnvForRuntime("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173", env)
+	if err != nil {
+		return nil, err
+	}
+	origins := strings.Split(allowedOrigins, ",")
 
 	return &Config{
 		Server: ServerConfig{
 			Port: getEnv("PORT", "8080"),
-			Env:  getEnv("ENV", "development"),
+			Env:  env,
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
+			Host:     dbHost,
 			Port:     getEnv("DB_PORT", "5432"),
-			User:     getEnv("DB_USER", "postgres"),
+			User:     dbUser,
 			Password: dbPassword,
-			Name:     getEnv("DB_NAME", "estospaces"),
-			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
+			Name:     dbName,
+			SSLMode:  dbSSLMode,
 		},
 		JWT: JWTConfig{
 			Secret: jwtSecret,
@@ -101,4 +123,23 @@ func getRequiredEnv(key string) (string, error) {
 		return v, nil
 	}
 	return "", fmt.Errorf("%s is required", key)
+}
+
+func getEnvForRuntime(key, fallback, env string) (string, error) {
+	if v := os.Getenv(key); v != "" {
+		return v, nil
+	}
+	if isStrictRuntime(env) {
+		return "", fmt.Errorf("%s is required when ENV=%s", key, env)
+	}
+	return fallback, nil
+}
+
+func isStrictRuntime(env string) bool {
+	switch strings.ToLower(strings.TrimSpace(env)) {
+	case "production", "staging":
+		return true
+	default:
+		return false
+	}
 }
