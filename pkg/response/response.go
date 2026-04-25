@@ -59,7 +59,7 @@ func NotFound(c *fiber.Ctx, message string) error {
 	return Error(c, 404, message)
 }
 
-// InternalError sends a 500 error
-func InternalError(c *fiber.Ctx, message string) error {
-	return Error(c, 500, message)
+// InternalError sends a generic 500 error without exposing internal details.
+func InternalError(c *fiber.Ctx, _ string) error {
+	return Error(c, 500, "Internal server error")
 }
