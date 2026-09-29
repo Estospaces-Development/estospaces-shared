@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -48,7 +49,10 @@ func (d *DatabaseConfig) DSN() string {
 
 // Load reads configuration from environment variables with sensible defaults
 func Load() (*Config, error) {
-	godotenv.Load() // ignore error; .env is optional
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
+		// Parser errors may include file contents; never return the underlying error.
+		return nil, errors.New("failed to load optional .env configuration")
+	}
 
 	env := getEnv("ENV", "development")
 
